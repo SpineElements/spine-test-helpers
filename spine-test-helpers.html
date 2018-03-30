@@ -120,7 +120,7 @@
        *  }} params  a hash whose properties defines which checks should be performed on a node:
        *    - `name` makes the element's tag name to be checked. Lower-case tag name is expected
        *             here.
-       *    - `className` makes the the element's `className` property to be checked against the
+       *    - `className` makes the element's `className` property to be checked against the
        *             specified string.
        *    - `innerHTML` makes the element's `innerHTML` property to be checked against the
        *             specified string.
@@ -130,27 +130,29 @@
        *             provided array of checkers (see the `checkNodeList` function for details, which
        *             is used to perform the actual checks). Similar to `checkNodeList`, accepts
        *             an array of checker functions, one per each expected node.
-       *    - `filteredNodeCheckers` is the same as `childNodeCheckers`, but instead of accepting
-       *             an array of checkers, it can perform several checks for child nodes filtered
-       *             with different  filters. It accepts an array of entries where each entry is
-       *             an object having two fields: `filter` (a function that filters nodes), and
-       *             `checkers` (an array of checkers that is used to check the filtered list of
-       *             child nodes — one checker per each expected node).
+       *    - `filteredNodeCheckers` is the same as `childNodeCheckers`, but it checks a list of
+       *             child nodes filtered according to the provided filter. In fact, it can check
+       *             sets of child nodes filtered in different ways by different filters, passed
+       *             here. Instead of accepting an array of checkers, it accepts an array of entries
+       *             where each entry is an object having two fields: `filter` (a function that
+       *             filters nodes), and `checkers` (an array of checkers that is used to check
+       *             the filtered list of child nodes — one checker per each expected node).
        *    - `slots` accepts a hash that allows to run checkers on elements assigned to specific
-       *             slots. Key name in the provided hash should be the same as the slot name to be
-       *             checked, and the respective value should contain a checker function that should
-       *             be run on an element assigned to that slot.
+       *             slots. Each key name in the provided hash should be the same as the slot name
+       *             to be checked, and the respective value should contain a checker function that
+       *             should be run on an element assigned to that slot. Passing `null` as a value
+       *             results in an assertion that ensures that there's no element assigned to that
+       *             slot.
        *    - `properties` accepts a hash of property name -> property value pairs that should be
-       *             checked using `assert.equal` on the respective element(s).
-       *    - `computedStyle` — a hash of CSS property name -> CSS property value paris that should
-       *             be checked on an element's computed style (calculated with
-       *             `Window.getComputedStyle()` method).
-       *    - `borderBox` — a hash of  property name -> property value pairs that can be used to
-       *             check an element's border box (which is obtained using the
-       *             `Element.getBoundingClientRect()` method). A key can be one of : `left`, `top`,
+       *             checked using the `assert.equal` for the respective element(s).
+       *    - `computedStyle` — a hash of CSS property name -> CSS property value paris that are
+       *             expected to be applied on the checked element(s) (actual CSS property values
+       *             are detected using the `Window.getComputedStyle()` method).
+       *    - `borderBox` — a hash of property name -> property value pairs that should be checked
+       *             against element's border box (which is obtained using the
+       *             `Element.getBoundingClientRect()` method). A key can be one of: `left`, `top`,
        *             `right`, `bottom`, `width`, `height`, and a value should be a number that the
        *             respective property is expected to be equal to.
-       *
        *
        * @returns {function(node: Node, message: string)}
        */
