@@ -1,0 +1,209 @@
+<!--
+  ~ Copyright (c) 2000-2018 TeamDev Ltd. All rights reserved.
+  ~ TeamDev PROPRIETARY and CONFIDENTIAL.
+  ~ Use is subject to license terms.
+  -->
+
+<!--
+  Provides the utilities for testing custom elements.
+
+  The functions in this file assume that the [Chai Assertion Library](http://www.chaijs.com/)
+  library is available where these methods are used (it is already provided with Web Component
+  Tester if you're writing Polymer element tests).
+-->
+<script>
+  (function () {
+    /**
+     * Contains constants for the standard node names
+     * (https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeName).
+     */
+    window.NodeNames = {
+      TEXT: '#text',
+      COMMENT: '#comment'
+    };
+
+    /**
+     * A collection of functions that accept a `Node` reference as a parameter and returns `true` or
+     * `false` depending on whether a condition specific to each individual method is met or not.
+     */
+    window.NodePredicates = {
+      isWhitespaceOnlyTextNode: node => (
+          node.nodeName === NodeNames.TEXT &&
+          node.data.trim() === ''
+      ),
+      isCommentNode: node => (
+          node.nodeName === NodeNames.COMMENT
+      ),
+      isDisplayNoneElement: node => (
+          node instanceof Element &&
+          getComputedStyle(node).display === 'none'
+      ),
+      isDisplayedNode: node => (
+          !NodePredicates.isWhitespaceOnlyTextNode(node) &&
+          !NodePredicates.isCommentNode(node) &&
+          !NodePredicates.isDisplayNoneElement(node)
+      )
+    };
+
+    /**
+     * Checks the list of elements using the list of checkers — one checker for each node.
+     *
+     * A "checker" here is a function that accepts two parameters (`node: Node`, `message: string`),
+     * and runs assertions for any criteria that the respective node should fulfill. If the passed
+     * node passes all checks then the checker function should return without exceptions.
+     * messages. Checker implementations are encouraged to include the `message` passed to them into
+     * the actual assertion messages so that a higher level assertion context is clear in the
+     * resulting messages.
+     *
+     * @param {Array<Node>} nodes
+     *                  An array (or array-like or iterable object) of nodes that should be checked.
+     * @param {function(Node):boolean=} nodeFilter
+     *                  A function, which can optionally be specified in order to change the default
+     *                  node filtering behavior. If `null` or `undefined` is passed then the default
+     *                  filter excludes all whitespace-only text nodes, comment nodes, and nodes
+     *                  whose `display` CSS property have a value of `none`.
+     * @param {Array<function(Node,string)>} expectedNodeCheckers
+     *                  An array of checker functions, whose length is expected to be the same as
+     *                  the number of nodes that satisfy the filtering criteria according to
+     *                  `nodeFilter` value being used.
+     * @param {string} message
+     *                  An optional message that will be used in assertions performed by this
+     *                  method, and passed to the respective checkers.
+     */
+    window.checkNodeList = function(nodes, nodeFilter, expectedNodeCheckers, message) {
+      if (!nodeFilter) {
+        nodeFilter = NodePredicates.isDisplayedNode;
+      }
+      const messagePrefix = message ? `${message}: ` : '';
+      if (!expectedNodeCheckers) {
+        assert.equal(nodes.length, 0, `${messagePrefix}expecting nodes list to be empty.`);
+        return;
+      }
+      const filteredNodes = Array.from(nodes).filter(nodeFilter);
+      assert.equal(filteredNodes.length, expectedNodeCheckers.length,
+          `${messagePrefix}checking the number of nodes`);
+      filteredNodes.forEach((node, index) => {
+        const expectedNodeChecker = expectedNodeCheckers[index];
+        expectedNodeChecker(node,
+            `${messagePrefix}checking node number ${index} (nodeName='${node.nodeName}')`);
+      });
+      return filteredNodes;
+    };
+
+    /**
+     * A collection of functions that create checkers of various kinds.
+     *
+     * A "checker" here is a function that accepts two parameters (`node: Node`, `message: string`),
+     * and checks the specified node for any criteria that are specific for this type of checker
+     * using the assertion functions. So if element checking fails, an appropriate assertion
+     * exception is thrown, and if all checks are passed then the function returns without
+     * exceptions. The `message` parameter provides a text that should be included into the actual
+     * assertion messages.
+     */
+    window.Checkers = Object.assign(window.Checkers || {}, {
+      /**
+       * Creates a checker that checks whether a node that it is given is an element that that
+       * satisfies the criteria passed in the `params` argument.
+       *
+       * @param {{
+       *    name: string|undefined,
+       *    className: string|undefined,
+       *    innerHTML: string|undefined,
+       *    childNodeCheckers: Array<function>|undefined,
+       *    computedStyle: Object|undefined
+       *  }} params
+       * @returns {function(node: Node, message: string)}
+       */
+      element: (params) => (node, message) => {
+        const messagePrefix = message ? `${message}: ` : '';
+        assert.isOk(node, '${messagePrefix}a node reference must be provided');
+        assert.isTrue(node instanceof Element,
+            `${messagePrefix}checking that the passed node is an ` +
+            `instance of Element (node.nodeName = '${node.nodeName}'`);
+        if (params.name !== undefined) {
+          assert.equal(node.tagName.toLowerCase(), params.name,
+              `${messagePrefix}checking element's tag name`);
+        }
+        if (params.className !== undefined) {
+          assert.equal(node.className || '', params.className || '',
+              `${messagePrefix}checking element's class name`);
+        }
+        if (params.innerHTML !== undefined) {
+          assert.equal(node.innerHTML.trim(), params.innerHTML,
+              `${messagePrefix}checking element's innerHTML`);
+        }
+        if (params.innerText !== undefined) {
+          assert.equal(node.innerText.trim(), params.innerText,
+              `${messagePrefix}checking element's innerText`);
+        }
+        if (params.childNodeCheckers !== undefined) {
+          checkNodeList(node.childNodes, null, params.childNodeCheckers,
+              `${messagePrefix}checking child nodes`);
+        }
+        if (params.filteredChildNodeCheckers !== undefined) {
+          params.filteredChildNodeCheckers.forEach((entry, i) => {
+            const nodeFilterFunction = entry.filter;
+            const expectedNodeCheckers = entry.checkers;
+            checkNodeList(node.childNodes, nodeFilterFunction, entry.checkers,
+                `${messagePrefix}checking filtered child nodes (filter index: ${i})`);
+          });
+        }
+        if (params.slots !== undefined) {
+          Object.keys(params.slots).forEach(slotName => {
+            const elementChecker = params.slots[slotName];
+            const elementAssignedToSlot = node.querySelector(`*[slot="${slotName}"]`);
+            if (elementChecker) {
+              assert.isOk(elementAssignedToSlot,
+                  `${messagePrefix}checking element existence with attribute slot="${slotName}"`);
+              elementChecker(elementAssignedToSlot,
+                  `${messagePrefix}checking element with attribute slot="${slotName}"`);
+            } else {
+              assert.isNull(elementAssignedToSlot,
+                  `${messagePrefix}ensuring that there's no element with ` +
+                  `attribute slot="${slotName}"`);
+            }
+          });
+        }
+        if (params.properties !== undefined) {
+          Object.keys(params.properties).forEach(propertyName => {
+            assert.equal(node[propertyName], params.properties[propertyName],
+                `${messagePrefix}checking property '${propertyName}'`);
+          });
+        }
+        if (params.computedStyle !== undefined) {
+          const style = getComputedStyle(node);
+          Object.keys(params.computedStyle).forEach(propertyName => {
+            assert.equal(style[propertyName], params.computedStyle[propertyName],
+                `${messagePrefix}checking CSS property '${propertyName}'`);
+          });
+        }
+        if (params.borderBox !== undefined) {
+          const rect = node.getBoundingClientRect();
+          Object.keys(params.borderBox).forEach(paramName => {
+            const expectedParamValue = params.borderBox[paramName];
+            const actualParamValue = rect[paramName];
+            assert.equal(actualParamValue, expectedParamValue,
+                `${messagePrefix}checking the borderBox['${paramName}'] value`);
+          });
+        }
+      },
+
+      /**
+       * Creates a checker that ensures that the passed node is a text node with the specified text.
+       *
+       * @param {string} text
+       * @returns {function(node: Node, message: string)}
+       */
+      textNode: text => (node, message) => {
+        const messagePrefix = message ? `${message}: ` : '';
+        assert.isOk(node, '${messagePrefix}a node reference must be provided');
+        assert.equal(node.nodeName, NodeNames.TEXT,
+            `${messagePrefix}expecting a text node (with text "${text}"), ` +
+            `but encountered a node named ${node.nodeName}`);
+        const trimmedText = node.data.trim();
+        assert.equal(trimmedText, text, `${messagePrefix}checking the text node's content`);
+      }
+    });
+
+  }());
+</script>
