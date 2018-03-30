@@ -25,7 +25,7 @@
  * @param {{delay:number=300,flush:boolean=false}=} params
  *            Contains optional parameters:
  *              `delay` — period (in milliseconds) that should be
- *                         waited for before calling the specified test function
+ *                        waited for before calling the specified test function
  *              `flush` — specifies whether
  */
 function testDelayed(name, testFunc, params) {
