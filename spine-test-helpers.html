@@ -14,6 +14,68 @@
 <script>
   (function () {
     /**
+     * Wait for the specified condition asynchronously (with a chain of `setTimeout` invocations),
+     * and invokes the provided completion callback when the condition is met. If the condition is
+     * not met within the period defined by the `timeoutMillis` parameter then an assertion error is
+     * reported.
+     *
+     * The passed completion callback can either be invoked synchronously (if a condition is met
+     * when the function is invoked), or asynchronously, if a condition is fulfilled later.
+     *
+     * @param {function(): boolean|undefined} condition
+     *                A function that checks the condition. It can return `true` or `undefined` if
+     *                the condition is fulfilled, and `false` if it still has to be waited for. If
+     *                a function throws any exception, this is treated in the same way as if the
+     *                function returned `false`.
+     * @param {function}    completionCallback
+     *                A function that is invoked when the condition is met.
+     * @param {number=2000} timeoutMillis
+     *                A maximum period in milliseconds that the condition should be waited for.
+     */
+    window.waitForCondition = function(condition, completionCallback, timeoutMillis = 2000) {
+      const deadline = Date.now() + timeoutMillis;
+
+      let lastFailureDescription = null;
+      function waitFor_internal(condition, completionCallback) {
+        if (Date.now() > deadline) {
+          const lastFailureInfo = lastFailureDescription
+              ? `Last failure: ${lastFailureDescription}`
+              : '';
+          assert.fail('Fulfilled in time', 'Condition',
+              `Timed out waiting for a condition (in ${timeoutMillis}ms). ${lastFailureInfo}`);
+        }
+        let stopWithException = null;
+        try {
+          const conditionEvaluationResult = condition();
+          if (conditionEvaluationResult === true || conditionEvaluationResult === undefined) {
+            completionCallback();
+            return;
+          }
+          if (conditionEvaluationResult !== false) {
+            stopWithException = new Error(
+                'A function passed to waitForCondition has to return either a boolean value or ' +
+                `undefined, but the following value with a type of ` +
+                `${typeof conditionEvaluationResult} was returned: ${conditionEvaluationResult} `);
+          }
+        } catch(e) {
+          // waiting for condition() to complete without throwing an exception
+          lastFailureDescription =
+              e instanceof Error ? e.message :
+                  e.constructor      ? `[${e.constructor.name}]` :
+                      `[${typeof e}]`;
+        }
+
+        if (stopWithException) {
+          throw stopWithException;
+        }
+
+        setTimeout(() => waitFor_internal(condition, completionCallback), 20)
+      }
+
+      waitFor_internal(condition, completionCallback);
+    };
+
+    /**
      * Contains constants for the standard node names
      * (https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeName).
      */
@@ -46,11 +108,17 @@
     };
 
     /**
-     * Checks the list of elements using the list of checkers — one checker for each node.
+     * Checks the list of nodes using the list of checkers — one checker for each node.
      *
      * A "checker" here is a function that accepts two parameters (`node: Node`, `message: string`),
      * and runs assertions for any criteria that the respective node should fulfill. If the passed
      * node passes all checks then the checker function should return without exceptions.
+     *
+     * The passed list of nodes is filtered to skip all whitespace-only text nodes, comment nodes,
+     * and nodes whose `display` CSS property has a value of `none` (as defined by the logic in
+     * `NodePredicates.isDisplayed()` function). This default filtering behavior can be changed
+     * using the `nodeFilter` parameter. The checkers passed to this function will be applied to
+     * the filtered list.
      *
      * Checker implementations are encouraged to include the `message` passed to them into
      * the actual assertion messages so that a higher level assertion context is clear in the
@@ -60,9 +128,8 @@
      *                  An array (or array-like or iterable object) of nodes that should be checked.
      * @param {function(Node):boolean=} nodeFilter
      *                  A function, which can optionally be specified in order to change the default
-     *                  node filtering behavior. If `null` or `undefined` is passed then the default
-     *                  filter excludes all whitespace-only text nodes, comment nodes, and nodes
-     *                  whose `display` CSS property have a value of `none`.
+     *                  node filtering behavior. If `null` or `undefined` is passed then
+     *                  `NodePredicates.isDisplayed` is used as a default filter.
      * @param {Array<function(Node,string)>} expectedNodeCheckers
      *                  An array of checker functions, whose length is expected to be the same as
      *                  the number of nodes that satisfy the filtering criteria according to
@@ -122,14 +189,16 @@
        *             here.
        *    - `className` makes the element's `className` property to be checked against the
        *             specified string.
-       *    - `innerHTML` makes the element's `innerHTML` property to be checked against the
+       *    - `innerHTML` makes the element's trimmed `innerHTML` property to be checked against the
        *             specified string.
-       *    - `innerText` makes the element's `innerText` property to be checked against the
+       *    - `innerText` makes the element's trimmed `innerText` property to be checked against the
        *             specified string.
        *    - `childNodeCheckers` makes the element's displayed nodes to be checked with the
        *             provided array of checkers (see the `checkNodeList` function for details, which
-       *             is used to perform the actual checks). Similar to `checkNodeList`, accepts
-       *             an array of checker functions, one per each expected node.
+       *             is used to perform the actual checks). Note that only the nodes that pass the
+       *             `NodePredicates.isDisplayedNode` filter are checked. Similar to
+       *             `checkNodeList`, accepts an array of checker functions, one per each expected
+       *             node.
        *    - `filteredNodeCheckers` is the same as `childNodeCheckers`, but it checks a list of
        *             child nodes filtered according to the provided filter. In fact, it can check
        *             sets of child nodes filtered in different ways by different filters, passed
@@ -151,8 +220,8 @@
        *    - `borderBox` — a hash of property name -> property value pairs that should be checked
        *             against element's border box (which is obtained using the
        *             `Element.getBoundingClientRect()` method). A key can be one of: `left`, `top`,
-       *             `right`, `bottom`, `width`, `height`, and a value should be a number that the
-       *             respective property is expected to be equal to.
+       *             `right`, `bottom`, `width`, or `height`, and a value should be a number that
+       *             the respective property is expected to be equal to.
        *
        * @returns {function(node: Node, message: string)}
        */
