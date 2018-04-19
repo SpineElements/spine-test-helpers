@@ -19,8 +19,15 @@
      * not met within the period defined by the `timeoutMillis` parameter then an assertion error is
      * reported.
      *
+     * A condition is specified as a function, which can return `true` or `undefined` to signify
+     * that the condition is fulfilled, and return `false` or throw an exception to signify that the
+     * condition is not fulfilled.
+     *
      * The passed completion callback can either be invoked synchronously (if a condition is met
      * when the function is invoked), or asynchronously, if a condition is fulfilled later.
+     *
+     * This function throws an exception if the specified condition wasn't fulfilled during the
+     * configured timeout period (see the `timeoutMillis` parameter).
      *
      * @param {function(): boolean|undefined} condition
      *                A function that checks the condition. It can return `true` or `undefined` if
@@ -29,19 +36,29 @@
      *                function returned `false`.
      * @param {function}    completionCallback
      *                A function that is invoked when the condition is met.
+     * @param {string=}     description
+     *                An optional description that will be included into the timeout waiting failure
+     *                message.
      * @param {number=2000} timeoutMillis
      *                A maximum period in milliseconds that the condition should be waited for.
+     *
+     * @throws An exception if the condition couldn't be fulfilled in the allotted timeout period.
      */
-    window.waitForCondition = function(condition, completionCallback, timeoutMillis = 2000) {
+    window.waitForCondition = function(condition,
+        completionCallback,
+        description,
+        timeoutMillis = 2000) {
       const deadline = Date.now() + timeoutMillis;
 
       let lastFailureDescription = null;
+      const descriptionPrefix = description ? `${description}: ` : '';
       function waitFor_internal(condition, completionCallback) {
         if (Date.now() > deadline) {
           const lastFailureInfo = lastFailureDescription
               ? `Last failure: ${lastFailureDescription}`
               : '';
           assert.fail('Fulfilled in time', 'Condition',
+              descriptionPrefix +
               `Timed out waiting for a condition (in ${timeoutMillis}ms). ${lastFailureInfo}`);
         }
         let stopWithException = null;
@@ -53,16 +70,16 @@
           }
           if (conditionEvaluationResult !== false) {
             stopWithException = new Error(
-                'A function passed to waitForCondition has to return either a boolean value or ' +
-                `undefined, but the following value with a type of ` +
+                `${descriptionPrefix}A function passed to waitForCondition has to return either ` +
+                'a boolean value or undefined, but the following value with a type of ' +
                 `${typeof conditionEvaluationResult} was returned: ${conditionEvaluationResult} `);
           }
         } catch(e) {
           // waiting for condition() to complete without throwing an exception
           lastFailureDescription =
               e instanceof Error ? e.message :
-                  e.constructor      ? `[${e.constructor.name}]` :
-                      `[${typeof e}]`;
+              e.constructor      ? `[${e.constructor.name}]` :
+                                   `[${typeof e}]`;
         }
 
         if (stopWithException) {
