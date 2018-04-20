@@ -72,7 +72,7 @@
             stopWithException = new Error(
                 `${descriptionPrefix}A function passed to waitForCondition has to return either ` +
                 'a boolean value or undefined, but the following value with a type of ' +
-                `${typeof conditionEvaluationResult} was returned: ${conditionEvaluationResult} `);
+                `${typeof conditionEvaluationResult} was returned: ${conditionEvaluationResult}`);
           }
         } catch(e) {
           // waiting for condition() to complete without throwing an exception
@@ -86,7 +86,7 @@
           throw stopWithException;
         }
 
-        setTimeout(() => waitFor_internal(condition, completionCallback), 20)
+        setTimeout(() => waitFor_internal(condition, completionCallback), 20);
       }
 
       waitFor_internal(condition, completionCallback);
