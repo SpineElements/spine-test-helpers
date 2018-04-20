@@ -93,6 +93,47 @@
     };
 
     /**
+     * Runs the specified list of functions with an asynchronous delay between each of them.
+     *
+     * If an exception occurs in any of the functions, the successive functions in the list won't be
+     * invoked. The first function in this list is run synchronously when this function is invoked.
+     *
+     * @param {{interval: number=0, retryTimeout: number=0}}  params
+     *             parameters that define the rules of executing the asynchronous invocation chain:
+     *             - `interval` defines a number of milliseconds that should elapse before the next
+     *               function is invoked. A value of 0 (a default value) still makes functions
+     *               calls to be separated with an asynchronous delay (albeit a minimal one).
+     *             - `retryTimeout` specifies a number of milliseconds that each function should be
+     *               retried in, if its invocation throws an exception. A value of 0 (a default
+     *               value) means that each function will be invoked only once without additional
+     *               retries.
+     * @param {function} functions
+     *             functions that should be invoked
+     */
+    window.runAsyncChain = function(params, ...functions) {
+      if (functions.length === 0) {
+        return;
+      }
+
+      const interval = params.interval || 0;
+      const invokeNextAsyncFunction = () => {
+        Polymer.Base.async(() => {
+          runAsyncChain(params, ...functions.slice(1));
+        }, interval);
+      };
+
+      const retryTimeout = params.retryTimeout || 0;
+      if (retryTimeout === 0) {
+        functions[0]();
+        invokeNextAsyncFunction();
+      } else {
+        waitForCondition(() => {
+          functions[0]();
+        }, invokeNextAsyncFunction, retryTimeout);
+      }
+    };
+
+    /**
      * Contains constants for the standard node names
      * (https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeName).
      */
