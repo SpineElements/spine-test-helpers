@@ -286,6 +286,7 @@
        *             `right`, `bottom`, `width`, or `height`, and a value should be a number that
        *             the respective property is expected to be equal to. Dimensions that are off by
        *             up to 0.5 pixels are considered equal by this method.
+       *    - `checkers` — an array of checker functions that should be run for the node.
        *
        * @returns {function(node: Node, message: string)}
        */
@@ -364,6 +365,21 @@
             const actualParamValue = rect[paramName];
             assert.approximately(actualParamValue, expectedParamValue, 0.5,
                 `${messagePrefix}checking the borderBox['${paramName}'] value`);
+          });
+        }
+        const checkers = params.checkers;
+        if (checkers !== undefined) {
+          if (!(checkers instanceof Array)) {
+            throw Error('`checkers` should be an array, but was: ' +
+                (checkers.constructor ? checkers.constructor.name : checkers)
+            );
+          }
+          checkers.forEach((checkerFunction, checkerIndex) => {
+            if (typeof checkerFunction !== 'function') {
+              throw Error(
+                  `Each entry in the \`checkers\` array should be a function: ${checkerFunction}`);
+            }
+            checkerFunction(node, `${messagePrefix}running checker #${checkerIndex}`);
           });
         }
       },
