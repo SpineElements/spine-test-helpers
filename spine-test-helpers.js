@@ -116,7 +116,7 @@ export function runAsyncChain(params, ...functions) {
 
   const interval = params.interval || 0;
   const invokeNextAsyncFunction = () => {
-    Polymer.Base.async(() => {
+    setTimeout(() => {
       runAsyncChain(params, ...functions.slice(1));
     }, interval);
   };
