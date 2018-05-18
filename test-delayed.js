@@ -28,7 +28,7 @@
  *                        waited for before calling the specified test function
  *              `flush` — specifies whether
  */
-function testDelayed(name, testFunc, params) {
+export function testDelayed(name, testFunc, params) {
   const actualParams = Object.assign({}, {delay: 300, flush: false}, params);
   const invokeDelayedTest = done => {
     setTimeout(() => {
