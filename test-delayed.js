@@ -1,8 +1,8 @@
 /*
-  Copyright (c) 2000-2018 TeamDev. All rights reserved.
-  TeamDev PROPRIETARY and CONFIDENTIAL.
-  Use is subject to license terms.
-*/
+ * Copyright (c) 2000-2018 TeamDev. All rights reserved.
+ * TeamDev PROPRIETARY and CONFIDENTIAL.
+ * Use is subject to license terms.
+ */
 
 /**
  * Similar to Web Component Tester's `test` function, but runs a test after an
