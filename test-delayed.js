@@ -1,8 +1,8 @@
 /*
-  Copyright (c) 2000-2018 TeamDev. All rights reserved.
-  TeamDev PROPRIETARY and CONFIDENTIAL.
-  Use is subject to license terms.
-*/
+ * Copyright (c) 2000-2018 TeamDev. All rights reserved.
+ * TeamDev PROPRIETARY and CONFIDENTIAL.
+ * Use is subject to license terms.
+ */
 
 /**
  * Similar to Web Component Tester's `test` function, but runs a test after an
@@ -28,7 +28,7 @@
  *                        waited for before calling the specified test function
  *              `flush` — specifies whether
  */
-function testDelayed(name, testFunc, params) {
+export function testDelayed(name, testFunc, params) {
   const actualParams = Object.assign({}, {delay: 300, flush: false}, params);
   const invokeDelayedTest = done => {
     setTimeout(() => {
