@@ -1,12 +1,9 @@
 # spine-test-helpers
 
-A set of utilities that simplify the creation of custom element tests.
+A set of utilities that simplify the creation of custom element tests and JavaScript tests in 
+general.
 
-Contains the following files that can be imported independently:
-- `spine-test-helpers.js` — the main package with the testing utilities;
-- `test-delayed.js` — provides the `testDelayed` function, that can be used instead of 
-  Web Component Tester's `test` function to run a test after a delay (delegates execution to the 
-  `test` function asynchronously).
+Please see the `spine-test-helpers.js` file for the actual set of utilities and their descriptions.
 
 # License
 
