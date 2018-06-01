@@ -128,7 +128,7 @@ export function runAsyncChain(params, ...functions) {
   } else {
     waitForCondition(() => {
       functions[0]();
-    }, invokeNextAsyncFunction, retryTimeout);
+    }, invokeNextAsyncFunction, null, retryTimeout);
   }
 }
 
