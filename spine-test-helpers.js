@@ -5,12 +5,58 @@
  */
 
 /*
-  This module provides the utilities for testing custom elements.
+  This module provides utilities for testing custom elements and JavaScript code
+  in general.
 
-  The functions in this file assume that the [Chai Assertion Library](http://www.chaijs.com/)
-  library is available where these methods are used (it is already provided with Web Component
-  Tester if you're writing Polymer element tests).
+  Functions in this file assume that the
+  [Chai Assertion Library](http://www.chaijs.com/) is loaded. Note: it is loaded
+  automatically by Web Component Tester, if you're writing Polymer element
+  tests.
 */
+
+/**
+ * Similar to the `test` function in Mocha test framework, but declares a test
+ * that runs after an asynchronous delay.
+ *
+ * It declares a test using the `test` function internally, so Mocha is still
+ * expected to be loaded when using this function. Note: it is loaded
+ * automatically by Web Component Tester, if you're writing Polymer element
+ * tests.
+ *
+ * @param {string} name
+ *            Test name
+ * @param {function(function()=)} testFunc
+ *            Test function, that optionally receives a `done` function. If the
+ *            actual function passed doesn't contain the `done` parameter then
+ *            async test execution is automatically marked as "done" after this
+ *            function completes execution. Otherwise, this function is expected
+ *            to invoke the passed `done` function itself.
+ * @param {{delay:number=300,flush:boolean=false}=} params
+ *            Contains optional parameters:
+ *              `delay` — period (in milliseconds) that should be
+ *                        waited for before calling the specified test function
+ *              `flush` — specifies whether
+ */
+export function testDelayed(name, testFunc, params) {
+  const actualParams = Object.assign({}, {delay: 300, flush: false}, params);
+  const invokeDelayedTest = done => {
+    setTimeout(() => {
+      testFunc(done);
+      if (testFunc.length === 0) {
+        // if a function doesn't accept a "done" parameter, signal async test
+        // completion on its behalf
+        done();
+      }
+    }, actualParams.delay);
+  };
+  test(name, (done) => {
+    if (actualParams.flush) {
+      flush(() => invokeDelayedTest(done));
+    } else {
+      invokeDelayedTest(done);
+    }
+  })
+}
 
 /**
  * Wait for the specified condition asynchronously (with a chain of `setTimeout` invocations),
@@ -128,7 +174,7 @@ export function runAsyncChain(params, ...functions) {
   } else {
     waitForCondition(() => {
       functions[0]();
-    }, invokeNextAsyncFunction, retryTimeout);
+    }, invokeNextAsyncFunction, null, retryTimeout);
   }
 }
 

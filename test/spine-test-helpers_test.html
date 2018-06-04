@@ -1,0 +1,121 @@
+<!DOCTYPE html>
+<!--
+  ~ Copyright (c) 2000-2018 TeamDev Ltd. All rights reserved.
+  ~ TeamDev PROPRIETARY and CONFIDENTIAL.
+  ~ Use is subject to license terms.
+  -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>spine-test-helpers test</title>
+
+  <script src="../node_modules/@webcomponents/webcomponentsjs/webcomponents-bundle.js"></script>
+  <script src="../node_modules/wct-browser-legacy/browser.js"></script>
+</head>
+<body>
+
+<test-fixture id="NodePredicates-testing-cases">
+  <template>
+    <!-- NOTE: Don't change the formatting of subtags here! It is a part of the test data. -->
+    <div>
+      <div class="whitespace-nodes">
+        <div class="space-character"> </div>
+        <div class="non-breakable-space-character">&nbsp;</div>
+        <div class="space-characters">   </div>
+        <div class="tab-characters">			</div>
+        <div class="newlines">
+
+
+        </div>
+        <div class="mixed-characters">   &nbsp;
+
+          			&nbsp;
+
+        </div>
+
+      </div>
+      <div class="non-empty-text-nodes">
+        <div class="non-empty-single-line">.</div>
+        <div class="non-empty-multi-line">
+          text node
+        </div>
+      </div>
+      <div class="displayed-nodes">
+        <div class="non-text-node-div"><div></div></div>
+      </div>
+      <div class="nodes-with-display-none">
+        <div class="non-text-node-hidden-div"><div style="display: none"></div></div>
+      </div>
+      <div class="nodes-with-visibility-hidden">
+        <div class="non-text-node-hidden-div"><div style="visibility: hidden"></div></div>
+      </div>
+      <div class="comment-nodes">
+        <div class="non-text-node-empty-comment"><!--></div>
+        <div class="non-text-node-non-empty-comment"><!-- comment node --></div>
+      </div>
+    </div>
+  </template>
+</test-fixture>
+
+<script type="module">
+  import { NodePredicates } from '../spine-test-helpers.js';
+
+  suite('spine-test-helpers', function() {
+
+    let testCases;
+
+    const checkNodePredicatesMethod = (methodName, positiveCasesGroup, negativeCasesGroup) => {
+      const checkCases = (nodeGroupNames, expectedPredicateValue) => {
+        nodeGroupNames.forEach(nodeGroupName => {
+          const testNodeContainers = testCases.querySelectorAll(`.${nodeGroupName} [class]`);
+          testNodeContainers.forEach(el => {
+            assert.equal(el.childNodes.length, 1,
+                'Expecting each test node container to have only one node');
+            const testedNode = el.childNodes[0];
+            const predicateValue = NodePredicates[methodName](testedNode);
+            assert.equal(predicateValue, expectedPredicateValue,
+                `Checking NodePredicates.${methodName} with ${nodeGroupName}/${el.className}`);
+          });
+        });
+      };
+
+      checkCases(positiveCasesGroup, true);
+      checkCases(negativeCasesGroup, false);
+    };
+
+    setup(() => {
+      testCases = fixture('NodePredicates-testing-cases');
+    });
+
+    test('NodePredicates.isWhitespaceOnlyTextNode works correctly', () => {
+      checkNodePredicatesMethod('isWhitespaceOnlyTextNode', ['whitespace-nodes'], [
+        'non-empty-text-nodes', 'displayed-nodes', 'nodes-with-display-none',
+        'nodes-with-visibility-hidden', 'comment-nodes'
+      ]);
+    });
+
+    test('NodePredicates.isCommentNode works correctly', () => {
+      checkNodePredicatesMethod('isCommentNode', ['comment-nodes'], [
+        'non-empty-text-nodes', 'displayed-nodes', 'nodes-with-display-none',
+        'nodes-with-visibility-hidden', 'whitespace-nodes'
+      ]);
+    });
+
+    test('NodePredicates.isDisplayNoneElement works correctly', () => {
+      checkNodePredicatesMethod('isDisplayNoneElement', ['nodes-with-display-none'], [
+        'non-empty-text-nodes', 'displayed-nodes', 'comment-nodes',
+        'nodes-with-visibility-hidden', 'whitespace-nodes'
+      ]);
+    });
+
+    test('NodePredicates.isDisplayedNode works correctly', () => {
+      checkNodePredicatesMethod('isDisplayedNode',
+          ['non-empty-text-nodes', 'displayed-nodes', 'nodes-with-visibility-hidden'],
+          ['nodes-with-display-none', 'comment-nodes', 'whitespace-nodes']
+      );
+    });
+
+  });
+</script>
+</body>
+</html>
