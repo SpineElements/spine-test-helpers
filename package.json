@@ -20,6 +20,7 @@
     "@polymer/polymer": "^3.0.0"
   },
   "devDependencies": {
-    "wct-browser-legacy": "^0.0.1-pre.11"
+    "wct-browser-legacy": "^1.0.1",
+    "@webcomponents/webcomponentsjs": "^2.0.0"
   }
 }
