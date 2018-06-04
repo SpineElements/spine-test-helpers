@@ -16,18 +16,26 @@
 
 <test-fixture id="NodePredicates-testing-cases">
   <template>
+    <!-- NOTE: Don't change the formatting of subtags here! It is a part of the test data. -->
     <div>
       <div class="whitespace-nodes">
+        <div class="space-character"> </div>
+        <div class="non-breakable-space-character">&nbsp;</div>
         <div class="space-characters">   </div>
         <div class="tab-characters">			</div>
-        <!-- NOTE: Don't remove the empty lines below, they are a part of test data! -->
         <div class="newlines">
 
 
         </div>
+        <div class="mixed-characters">   &nbsp;
+
+          			&nbsp;
+
+        </div>
+
       </div>
       <div class="non-empty-text-nodes">
-        <div class="non-empty-single-line"> . </div>
+        <div class="non-empty-single-line">.</div>
         <div class="non-empty-multi-line">
           text node
         </div>
