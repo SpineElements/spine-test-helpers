@@ -337,7 +337,7 @@ export const Checkers = Object.assign(window.Checkers || {}, {
    */
   element: (params) => (node, message) => {
     const messagePrefix = message ? `${message}: ` : '';
-    assert.isOk(node, '${messagePrefix}a node reference must be provided');
+    assert.isOk(node, `${messagePrefix}a node reference must be provided`);
     assert.isTrue(node instanceof Element,
         `${messagePrefix}checking that the passed node is an ` +
         `instance of Element (node.nodeName = '${node.nodeName}'`);
@@ -437,7 +437,7 @@ export const Checkers = Object.assign(window.Checkers || {}, {
    */
   textNode: text => (node, message) => {
     const messagePrefix = message ? `${message}: ` : '';
-    assert.isOk(node, '${messagePrefix}a node reference must be provided');
+    assert.isOk(node, `${messagePrefix}a node reference must be provided`);
     assert.equal(node.nodeName, NodeNames.TEXT,
         `${messagePrefix}expecting a text node (with text "${text}"), ` +
         `but encountered a node named ${node.nodeName}`);
