@@ -59,6 +59,32 @@ export function testDelayed(name, testFunc, params) {
 }
 
 /**
+ * Performs an asynchronous delay with the specified duration, and resolves the returned `Promise`
+ * instance upon the completion of this period.
+ *
+ * This function can particularly be useful in [async
+ * functions](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/async_function),
+ * where it can be used like this:
+ * ```
+ *    await asyncDelay(100);
+ * ```
+ *
+ * This method delays execution using the [macrotask](https://stackoverflow.com/a/25933985) queue
+ * (with the `setTimeout` function).
+ *
+ * @param {number=0} milliseconds duration of the delay in milliseconds. If omitted, this function
+ *                   creates a minimal asynchronous macrotask delay
+ * @returns {Promise<void>}
+ */
+function asyncDelay(milliseconds = 0) {
+  return new Promise((resolve, reject) => {
+    setTimeout(() => {
+      resolve();
+    }, milliseconds);
+  });
+}
+
+/**
  * Wait for the specified condition asynchronously (with a chain of `setTimeout` invocations),
  * and invokes the provided completion callback when the condition is met. If the condition is
  * not met within the period defined by the `timeoutMillis` parameter then an assertion error is
