@@ -90,9 +90,9 @@
       this._endTime = Date.now();
       const messagePrefix = message ? `${message}: ` : '';
       const maxElapsedTime = timeoutDelay * 1.05 + 50;
-      expect(this._endTime - this._startTime).to.be.within(timeoutDelay, maxElapsedTime,
+      expect(this._endTime - this._startTime).to.be.within(timeoutDelay - 1, maxElapsedTime,
         `${messagePrefix}Time elapsed is expected to be at least ${timeoutDelay}, ` +
-        `and at most${maxElapsedTime}`);
+        `and at most ${maxElapsedTime}`);
     }
   }
 
