@@ -76,7 +76,7 @@ export function testDelayed(name, testFunc, params) {
  *                   creates a minimal asynchronous macrotask delay
  * @returns {Promise<void>}
  */
-function asyncDelay(milliseconds = 0) {
+export function asyncDelay(milliseconds = 0) {
   return new Promise((resolve, reject) => {
     setTimeout(() => {
       resolve();
@@ -85,19 +85,26 @@ function asyncDelay(milliseconds = 0) {
 }
 
 /**
- * Wait for the specified condition asynchronously (with a chain of `setTimeout` invocations),
- * and invokes the provided completion callback when the condition is met. If the condition is
- * not met within the period defined by the `timeoutMillis` parameter then an assertion error is
- * reported.
+ * Performs an asynchronous delay until the specified condition is met.
+ *
+ * Fulfills the returned `Promise` if the condition is met within the period defined by the
+ * `timeoutMillis` parameter. Otherwise, rejects the `Promise`.
  *
  * A condition is specified as a function, which can return `true` or `undefined` to signify
  * that the condition is fulfilled, and return `false` or throw an exception to signify that the
  * condition is not fulfilled.
  *
- * The passed completion callback can either be invoked synchronously (if a condition is met
- * when the function is invoked), or asynchronously, if a condition is fulfilled later.
+ * Example:
+ * ```
+ * await asyncCondition(() =>
+ *   window.getElementById('status').innerText === 'Loaded!'
+ * );
+ * ```
  *
- * This function throws an exception if the specified condition wasn't fulfilled during the
+ * NOTE: the returned `Promise` can be fulfilled synchronously (if a condition is met when this
+ * function is invoked), or asynchronously (if a condition is fulfilled later).
+ *
+ * The `Promise` is rejected if the specified condition wasn't fulfilled during the
  * configured timeout period (see the `timeoutMillis` parameter).
  *
  * @param {function(): boolean|undefined} condition
@@ -105,20 +112,42 @@ function asyncDelay(milliseconds = 0) {
  *                the condition is fulfilled, and `false` if it still has to be waited for. If
  *                a function throws any exception, this is treated in the same way as if the
  *                function returned `false`.
- * @param {function}    completionCallback
  *                A function that is invoked when the condition is met.
  * @param {string=}     description
  *                An optional description that will be included into the timeout waiting failure
  *                message.
  * @param {number=2000} timeoutMillis
  *                A maximum period in milliseconds that the condition should be waited for.
+ * @returns {Promise} a `Promise`, which is either fulfilled, if the condition is met during the
+ *          allotted timeout period, and rejected otherwise.
+ */
+export function asyncCondition(condition, description, timeoutMillis = 2000) {
+  return new Promise((accept, reject) => {
+    // invoking the deprecated `waitForCondition` until its usages are removed and it is made
+    // module-private and non-deprecated again
+    // noinspection JSDeprecatedSymbols
+    waitForCondition(condition, () => {
+      accept();
+    }, description, timeoutMillis, e => {
+      reject(e);
+    });
+  });
+}
+
+/**
+ * A `Promise`less version of the `asyncCondition` method. This method is included only for
+ * backwards compatibility currently. Use the `asyncCondition` method instead.
  *
- * @throws An exception if the condition couldn't be fulfilled in the allotted timeout period.
+ * @deprecated
  */
 export function waitForCondition(condition,
     completionCallback,
     description,
-    timeoutMillis = 2000) {
+    timeoutMillis,
+    rejectionCallback) {
+  if (timeoutMillis === undefined) {
+    timeoutMillis = 2000;
+  }
   const deadline = Date.now() + timeoutMillis;
 
   let lastFailureDescription = null;
@@ -128,9 +157,15 @@ export function waitForCondition(condition,
       const lastFailureInfo = lastFailureDescription
           ? `Last failure: ${lastFailureDescription}`
           : '';
-      assert.fail('Fulfilled in time', 'Condition',
-          descriptionPrefix +
-          `Timed out waiting for a condition (in ${timeoutMillis}ms). ${lastFailureInfo}`);
+      const message = `Timed out waiting for a condition (in ${timeoutMillis}ms). ${lastFailureInfo}`;
+      if (rejectionCallback) {
+        rejectionCallback(new Error(message));
+        return;
+      } else {
+        assert.fail('Fulfilled in time', 'Condition',
+            descriptionPrefix +
+            message);
+      }
     }
     let stopWithException = null;
     try {
@@ -154,7 +189,12 @@ export function waitForCondition(condition,
     }
 
     if (stopWithException) {
-      throw stopWithException;
+      if (rejectionCallback) {
+        rejectionCallback(e);
+        return;
+      } else {
+        throw stopWithException;
+      }
     }
 
     setTimeout(() => waitFor_internal(condition, completionCallback), 20);
@@ -393,12 +433,25 @@ export const Checkers = Object.assign(window.Checkers || {}, {
       checkNodeList(node.childNodes, null, params.childNodes,
           `${messagePrefix}checking child nodes`);
     }
-    if (params.childNodesByFilters !== undefined) {
-      params.childNodesByFilters.forEach((entry, i) => {
-        const nodeFilterFunction = entry.filter;
-        checkNodeList(node.childNodes, nodeFilterFunction, entry.checkers,
-            `${messagePrefix}checking filtered child nodes (filter index: ${i})`);
-      });
+    if (params.childNodesByFilter !== undefined) {
+      checkNodeList(node.childNodes,
+          params.childNodesByFilter.filter,
+          params.childNodesByFilter.checkers,
+          `${messagePrefix}checking child nodes filtered using a custom filter`);
+    }
+    if (params.shadowNodes !== undefined) {
+      const shadowRoot = node.shadowRoot;
+      assert.isOk(shadowRoot, `${messagePrefix}the element should have shadow DOM`);
+      checkNodeList(shadowRoot.childNodes, null, params.shadowNodes,
+          `${messagePrefix}checking shadow DOM nodes`);
+    }
+    if (params.shadowNodesByFilter !== undefined) {
+      const shadowRoot = node.shadowRoot;
+      assert.isOk(shadowRoot, `${messagePrefix}the element should have shadow DOM`);
+      checkNodeList(shadowRoot.childNodes,
+          params.shadowNodesByFilter.filter,
+          params.shadowNodesByFilter.checkers,
+          `${messagePrefix}checking child nodes filtered using a custom filter`);
     }
     if (params.slots !== undefined) {
       Object.keys(params.slots).forEach(slotName => {

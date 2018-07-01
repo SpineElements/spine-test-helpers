@@ -14,7 +14,7 @@
 </head>
 <body>
 
-<test-fixture id="NodePredicates-testing-cases">
+<test-fixture id="NodePredicates">
   <template>
     <!-- NOTE: Don't change the formatting of subtags here! It is a part of the test data. -->
     <div>
@@ -58,63 +58,202 @@
 </test-fixture>
 
 <script type="module">
-  import { NodePredicates } from '../spine-test-helpers.js';
+  import { asyncDelay, asyncCondition, NodePredicates } from '../spine-test-helpers.js';
 
-  suite('spine-test-helpers', function() {
+  /**
+   * Simplifies checking the elapsed asynchronous periods while taking into account that actual
+   * asynchronous delays might be somewhat longer than requested.
+   *
+   * Creating an instance starts measuring time, and invoking `assertElapsedtimeCorrect` checks the
+   * time elapsed since instance creation.
+   */
+  class AsyncDelayChecker {
+    constructor() {
+      this._startTime = Date.now();
+    }
 
-    let testCases;
+    /**
+     * Check whether time elapsed since instance creation is not less than `timeoutDelay`. This
+     * method intentionally treats periods reasonably bigger than specified as valid since
+     * JavaScript's methods such as `setTimeout` don't guarantee exact invocation times.
+     *
+     * This method can be invoked only once per instance of `AsyncDelayChecker`.
+     *
+     * @param {Number} timeoutDelay  an asynchronous delay that is expected to have passed since
+     *                               instance creation at the time when this method is invoked
+     * @param {String=} message      an optional message to include into the assertion message
+     */
+    assertElapsedTimeCorrect(timeoutDelay, message) {
+      if (this._endTime) {
+        throw new Error('This method can be invoked only once per instance');
+      }
+      this._endTime = Date.now();
+      const messagePrefix = message ? `${message}: ` : '';
+      const maxElapsedTime = timeoutDelay * 1.05 + 50;
+      expect(this._endTime - this._startTime).to.be.within(timeoutDelay, maxElapsedTime,
+        `${messagePrefix}Time elapsed is expected to be at least ${timeoutDelay}, ` +
+        `and at most${maxElapsedTime}`);
+    }
+  }
 
-    const checkNodePredicatesMethod = (methodName, positiveCasesGroup, negativeCasesGroup) => {
-      const checkCases = (nodeGroupNames, expectedPredicateValue) => {
-        nodeGroupNames.forEach(nodeGroupName => {
-          const testNodeContainers = testCases.querySelectorAll(`.${nodeGroupName} [class]`);
-          testNodeContainers.forEach(el => {
-            assert.equal(el.childNodes.length, 1,
-                'Expecting each test node container to have only one node');
-            const testedNode = el.childNodes[0];
-            const predicateValue = NodePredicates[methodName](testedNode);
-            assert.equal(predicateValue, expectedPredicateValue,
-                `Checking NodePredicates.${methodName} with ${nodeGroupName}/${el.className}`);
-          });
+  suite('spine-test-helpers', () => {
+    suite('Internal testing utilities', () => {
+      const timeoutPromise = delay => new Promise((resolve, reject) => {
+        setTimeout(() => resolve(), delay);
+      });
+
+      test('AsyncDelayChecker (positive scenarios)', async () => {
+        const checkWithDelay = async delay => {
+          const checker = new AsyncDelayChecker();
+          await timeoutPromise(delay);
+          checker.assertElapsedTimeCorrect(delay);
+        };
+        await checkWithDelay(0);
+        await checkWithDelay(50);
+        await checkWithDelay(200);
+        await checkWithDelay(500);
+
+        const noDelayChecker = new AsyncDelayChecker();
+        noDelayChecker.assertElapsedTimeCorrect(0,
+            'Synchronous execution should match a delay of 0');
+      });
+
+      test('AsyncDelayChecker (negative scenarios)', async () => {
+        const checkWithValues = async delay => {
+          const overtime = Math.ceil(delay * 1.05) + 50 + 1;
+          const checker = new AsyncDelayChecker();
+          await timeoutPromise(delay + overtime);
+          expect(() => {
+            checker.assertElapsedTimeCorrect(delay);
+          }).to.throw(Error, null, 'Expecting assertElapsedTimeCorrect to fail when checked ' +
+              `after an overtime period of ${overtime}`);
+        };
+        await checkWithValues(0);
+        await checkWithValues(50);
+        await checkWithValues(200);
+        await checkWithValues(500);
+      });
+    });
+
+    suite('Async tests helper functions', () => {
+      test('asyncDelay() delays execution by a requested amount', async () => {
+        const checkWithDelay = async delay => {
+          const timeBefore = Date.now();
+          await asyncDelay(delay);
+          const timeAfter = Date.now();
+          expect(timeAfter - timeBefore).to.be.within(delay, delay * 1.1 + 50);
+        };
+        await checkWithDelay(0);
+        await checkWithDelay(50);
+        await checkWithDelay(200);
+        await checkWithDelay(500);
+      });
+
+      test('asyncDelay(0) introduces a minimum asynchronous macrotask queue delay', async () => {
+        let taskBeforeCompleted = false;
+        let taskAfterCompleted = false;
+        setTimeout(() => {
+          taskBeforeCompleted = true;
+        }, 0);
+        const zeroDelay = asyncDelay(0);
+        setTimeout(() => {
+          taskAfterCompleted = true;
         });
+
+        await zeroDelay;
+
+        assert.isTrue(taskBeforeCompleted, 'A zero-delayed macrotask scheduled before should ' +
+            'complete by this time');
+        assert.isFalse(taskAfterCompleted, 'A zero-delayed macrotask scheduled after shouldn\'t ' +
+            'complete by this time yet');
+      });
+
+      test('asyncCondition() fulfills its Promise when a condition is met', async() => {
+        const checkWithDelay = async delay => {
+          let flag = false;
+          setTimeout(() => {
+            flag = true;
+          }, delay);
+          await asyncCondition(() => flag === true);
+          assert.isTrue(flag, 'The condition is met after asyncCondition\'s Promise is fulfilled');
+        };
+        await checkWithDelay(50);
+        await checkWithDelay(200);
+        await checkWithDelay(1000);
+      });
+
+      test('asyncCondition() rejects its Promise if a condition is not met in time', async() => {
+        const checkWithTimeout = async timeout => {
+          try {
+            await asyncCondition(() => false);
+            assert.fail('asyncCondition\'s Promise was fulfilled',
+                'asyncCondition\'s Promise should be rejected since the condition is never met');
+          } catch (e) {
+            console.log('passed');
+          }
+        };
+
+        await checkWithTimeout(50);
+        await checkWithTimeout(200);
+        await checkWithTimeout(1000);
+      });
+
+    });
+
+    suite('NodePredicates', () => {
+      let testCases;
+
+      const checkNodePredicatesMethod = (methodName, positiveCasesGroup, negativeCasesGroup) => {
+        const checkCases = (nodeGroupNames, expectedPredicateValue) => {
+          nodeGroupNames.forEach(nodeGroupName => {
+            const testNodeContainers = testCases.querySelectorAll(`.${nodeGroupName} [class]`);
+            testNodeContainers.forEach(el => {
+              assert.equal(el.childNodes.length, 1,
+                  'Expecting each test node container to have only one node');
+              const testedNode = el.childNodes[0];
+              const predicateValue = NodePredicates[methodName](testedNode);
+              assert.equal(predicateValue, expectedPredicateValue,
+                  `Checking NodePredicates.${methodName} with ${nodeGroupName}/${el.className}`);
+            });
+          });
+        };
+
+        checkCases(positiveCasesGroup, true);
+        checkCases(negativeCasesGroup, false);
       };
 
-      checkCases(positiveCasesGroup, true);
-      checkCases(negativeCasesGroup, false);
-    };
+      setup(() => {
+        testCases = fixture('NodePredicates');
+      });
 
-    setup(() => {
-      testCases = fixture('NodePredicates-testing-cases');
+      test('NodePredicates.isWhitespaceOnlyTextNode works correctly', () => {
+        checkNodePredicatesMethod('isWhitespaceOnlyTextNode', ['whitespace-nodes'], [
+          'non-empty-text-nodes', 'displayed-nodes', 'nodes-with-display-none',
+          'nodes-with-visibility-hidden', 'comment-nodes'
+        ]);
+      });
+
+      test('NodePredicates.isCommentNode works correctly', () => {
+        checkNodePredicatesMethod('isCommentNode', ['comment-nodes'], [
+          'non-empty-text-nodes', 'displayed-nodes', 'nodes-with-display-none',
+          'nodes-with-visibility-hidden', 'whitespace-nodes'
+        ]);
+      });
+
+      test('NodePredicates.isDisplayNoneElement works correctly', () => {
+        checkNodePredicatesMethod('isDisplayNoneElement', ['nodes-with-display-none'], [
+          'non-empty-text-nodes', 'displayed-nodes', 'comment-nodes',
+          'nodes-with-visibility-hidden', 'whitespace-nodes'
+        ]);
+      });
+
+      test('NodePredicates.isDisplayedNode works correctly', () => {
+        checkNodePredicatesMethod('isDisplayedNode',
+            ['non-empty-text-nodes', 'displayed-nodes', 'nodes-with-visibility-hidden'],
+            ['nodes-with-display-none', 'comment-nodes', 'whitespace-nodes']
+        );
+      });
     });
-
-    test('NodePredicates.isWhitespaceOnlyTextNode works correctly', () => {
-      checkNodePredicatesMethod('isWhitespaceOnlyTextNode', ['whitespace-nodes'], [
-        'non-empty-text-nodes', 'displayed-nodes', 'nodes-with-display-none',
-        'nodes-with-visibility-hidden', 'comment-nodes'
-      ]);
-    });
-
-    test('NodePredicates.isCommentNode works correctly', () => {
-      checkNodePredicatesMethod('isCommentNode', ['comment-nodes'], [
-        'non-empty-text-nodes', 'displayed-nodes', 'nodes-with-display-none',
-        'nodes-with-visibility-hidden', 'whitespace-nodes'
-      ]);
-    });
-
-    test('NodePredicates.isDisplayNoneElement works correctly', () => {
-      checkNodePredicatesMethod('isDisplayNoneElement', ['nodes-with-display-none'], [
-        'non-empty-text-nodes', 'displayed-nodes', 'comment-nodes',
-        'nodes-with-visibility-hidden', 'whitespace-nodes'
-      ]);
-    });
-
-    test('NodePredicates.isDisplayedNode works correctly', () => {
-      checkNodePredicatesMethod('isDisplayedNode',
-          ['non-empty-text-nodes', 'displayed-nodes', 'nodes-with-visibility-hidden'],
-          ['nodes-with-display-none', 'comment-nodes', 'whitespace-nodes']
-      );
-    });
-
   });
 </script>
 </body>
