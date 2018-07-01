@@ -348,7 +348,9 @@ export const Checkers = Object.assign(window.Checkers || {}, {
    *    innerHTML: string|undefined,
    *    innerText: string|undefined,
    *    childNodes: Array<function>|undefined,
-   *    childNodesByFilters: Array<{filter:function,checkers:Array<function>}>|undefined,
+   *    childNodesByFilters: {filter:function,checkers:Array<function>}|undefined,
+   *    shadowNodes: Array<function>|undefined,
+   *    shadowNodesByFilters: {filter:function,checkers:Array<function>}|undefined,
    *    slots: Object|undefined,
    *    properties: Object|undefined,
    *    computedStyle: Object|undefined,
@@ -373,13 +375,15 @@ export const Checkers = Object.assign(window.Checkers || {}, {
    *             `NodePredicates.isDisplayedNode` filter are checked. Similar to
    *             `checkNodeList`, accepts an array of checker functions, one per each expected
    *             node.
-   *    - `childNodesByFilters` is the same as `childNodes`, but it checks a list of
-   *             child nodes filtered according to the provided filter. In fact, it can check
-   *             sets of child nodes filtered in different ways by different filters, passed
-   *             here. Instead of accepting an array of checkers, it accepts an array of entries
-   *             where each entry is an object having two fields: `filter` (a function that
-   *             filters nodes), and `checkers` (an array of checkers that is used to check
-   *             the filtered list of child nodes — one checker per each expected node).
+   *    - `childNodesByFilter` is the same as `childNodes`, but it checks a list of
+   *             child nodes filtered according to the provided filter. This parameter accepts
+   *             an object having two fields: `filter` (a function that filters nodes), and
+   *             `checkers` (an array of checkers that is used to check the filtered list of
+   *             child nodes — one checker per each expected node).
+   *    - `shadowNodes` — same as `childNodes`, but checks element's shadow DOM nodes as received
+   *             using the element's `shadowRoot.childNodes` property.
+   *    - `shadowNodesByFilter` — same as `childNodesByFilter`, but checks element's shadow DOM
+   *             nodes as received using the element's `shadowRoot.childNodes` property.
    *    - `slots` accepts a hash that allows to run checkers on elements assigned to specific
    *             slots. Each key name in the provided hash should be the same as the slot name
    *             to be checked, and the respective value should contain a checker function that
