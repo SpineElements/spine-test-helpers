@@ -307,8 +307,8 @@ export const Checkers = Object.assign(window.Checkers || {}, {
    *    className: string|undefined,
    *    innerHTML: string|undefined,
    *    innerText: string|undefined,
-   *    childNodeCheckers: Array<function>|undefined,
-   *    filteredChildNodeCheckers: Array<{filter:function,checkers:Array<function>}>|undefined,
+   *    childNodes: Array<function>|undefined,
+   *    childNodesByFilters: Array<{filter:function,checkers:Array<function>}>|undefined,
    *    slots: Object|undefined,
    *    properties: Object|undefined,
    *    computedStyle: Object|undefined,
@@ -327,13 +327,13 @@ export const Checkers = Object.assign(window.Checkers || {}, {
    *             specified string.
    *    - `innerText` makes the element's trimmed `innerText` property to be checked against the
    *             specified string.
-   *    - `childNodeCheckers` makes the element's displayed nodes to be checked with the
+   *    - `childNodes` makes the element's displayed nodes to be checked with the
    *             provided array of checkers (see the `checkNodeList` function for details, which
    *             is used to perform the actual checks). Note that only the nodes that pass the
    *             `NodePredicates.isDisplayedNode` filter are checked. Similar to
    *             `checkNodeList`, accepts an array of checker functions, one per each expected
    *             node.
-   *    - `filteredNodeCheckers` is the same as `childNodeCheckers`, but it checks a list of
+   *    - `childNodesByFilters` is the same as `childNodes`, but it checks a list of
    *             child nodes filtered according to the provided filter. In fact, it can check
    *             sets of child nodes filtered in different ways by different filters, passed
    *             here. Instead of accepting an array of checkers, it accepts an array of entries
@@ -363,7 +363,7 @@ export const Checkers = Object.assign(window.Checkers || {}, {
    */
   element: (params) => (node, message) => {
     const messagePrefix = message ? `${message}: ` : '';
-    assert.isOk(node, '${messagePrefix}a node reference must be provided');
+    assert.isOk(node, `${messagePrefix}a node reference must be provided`);
     assert.isTrue(node instanceof Element,
         `${messagePrefix}checking that the passed node is an ` +
         `instance of Element (node.nodeName = '${node.nodeName}'`);
@@ -389,12 +389,12 @@ export const Checkers = Object.assign(window.Checkers || {}, {
       assert.equal(node.innerText.trim(), params.innerText,
           `${messagePrefix}checking element's innerText`);
     }
-    if (params.childNodeCheckers !== undefined) {
-      checkNodeList(node.childNodes, null, params.childNodeCheckers,
+    if (params.childNodes !== undefined) {
+      checkNodeList(node.childNodes, null, params.childNodes,
           `${messagePrefix}checking child nodes`);
     }
-    if (params.filteredChildNodeCheckers !== undefined) {
-      params.filteredChildNodeCheckers.forEach((entry, i) => {
+    if (params.childNodesByFilters !== undefined) {
+      params.childNodesByFilters.forEach((entry, i) => {
         const nodeFilterFunction = entry.filter;
         checkNodeList(node.childNodes, nodeFilterFunction, entry.checkers,
             `${messagePrefix}checking filtered child nodes (filter index: ${i})`);
@@ -463,7 +463,7 @@ export const Checkers = Object.assign(window.Checkers || {}, {
    */
   textNode: text => (node, message) => {
     const messagePrefix = message ? `${message}: ` : '';
-    assert.isOk(node, '${messagePrefix}a node reference must be provided');
+    assert.isOk(node, `${messagePrefix}a node reference must be provided`);
     assert.equal(node.nodeName, NodeNames.TEXT,
         `${messagePrefix}expecting a text node (with text "${text}"), ` +
         `but encountered a node named ${node.nodeName}`);
