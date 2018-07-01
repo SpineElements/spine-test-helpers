@@ -307,7 +307,7 @@ export const NodePredicates = {
  *                  An optional message that will be used in assertions performed by this
  *                  method, and passed to the respective checkers.
  */
-export function checkNodeList(nodes, nodeFilter, expectedNodeCheckers, message) {
+export function checkNodes(nodes, nodeFilter, expectedNodeCheckers, message) {
   if (!nodeFilter) {
     nodeFilter = NodePredicates.isDisplayedNode;
   }
@@ -370,10 +370,10 @@ export const Checkers = Object.assign(window.Checkers || {}, {
    *    - `innerText` makes the element's trimmed `innerText` property to be checked against the
    *             specified string.
    *    - `childNodes` makes the element's displayed nodes to be checked with the
-   *             provided array of checkers (see the `checkNodeList` function for details, which
+   *             provided array of checkers (see the `checkNodes` function for details, which
    *             is used to perform the actual checks). Note that only the nodes that pass the
    *             `NodePredicates.isDisplayedNode` filter are checked. Similar to
-   *             `checkNodeList`, accepts an array of checker functions, one per each expected
+   *             `checkNodes`, accepts an array of checker functions, one per each expected
    *             node.
    *    - `childNodesByFilter` is the same as `childNodes`, but it checks a list of
    *             child nodes filtered according to the provided filter. This parameter accepts
@@ -434,11 +434,11 @@ export const Checkers = Object.assign(window.Checkers || {}, {
           `${messagePrefix}checking element's innerText`);
     }
     if (params.childNodes !== undefined) {
-      checkNodeList(node.childNodes, null, params.childNodes,
+      checkNodes(node.childNodes, null, params.childNodes,
           `${messagePrefix}checking child nodes`);
     }
     if (params.childNodesByFilter !== undefined) {
-      checkNodeList(node.childNodes,
+      checkNodes(node.childNodes,
           params.childNodesByFilter.filter,
           params.childNodesByFilter.checkers,
           `${messagePrefix}checking child nodes filtered using a custom filter`);
@@ -446,13 +446,13 @@ export const Checkers = Object.assign(window.Checkers || {}, {
     if (params.shadowNodes !== undefined) {
       const shadowRoot = node.shadowRoot;
       assert.isOk(shadowRoot, `${messagePrefix}the element should have shadow DOM`);
-      checkNodeList(shadowRoot.childNodes, null, params.shadowNodes,
+      checkNodes(shadowRoot.childNodes, null, params.shadowNodes,
           `${messagePrefix}checking shadow DOM nodes`);
     }
     if (params.shadowNodesByFilter !== undefined) {
       const shadowRoot = node.shadowRoot;
       assert.isOk(shadowRoot, `${messagePrefix}the element should have shadow DOM`);
-      checkNodeList(shadowRoot.childNodes,
+      checkNodes(shadowRoot.childNodes,
           params.shadowNodesByFilter.filter,
           params.shadowNodesByFilter.checkers,
           `${messagePrefix}checking child nodes filtered using a custom filter`);
