@@ -7,7 +7,7 @@
     "polymer",
     "test"
   ],
-  "version": "0.4.1",
+  "version": "0.6.0",
   "resolutions": {
     "inherits": "2.0.3",
     "samsam": "1.1.3",
