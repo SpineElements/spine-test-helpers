@@ -88,9 +88,18 @@
         throw new Error('This method can be invoked only once per instance');
       }
       this._endTime = Date.now();
+
+      // Actual async callbacks have been noticed to arrive 1 ms earlier a couple of times in
+      // Chrome. The assumption is that this could be caused by some rounding issues, hence we
+      // consider these "earlier by 1" callbacks as valid.
+      const minElapsedTime = timeoutDelay - 1;
+
+      // allowing a fixed 50 ms of overtime below as a rough assumption of how an actual async
+      // callback's invocation time might be late relative to the scheduled invocation time
+      const maxElapsedTime = timeoutDelay + 50;
+
       const messagePrefix = message ? `${message}: ` : '';
-      const maxElapsedTime = timeoutDelay * 1.05 + 50;
-      expect(this._endTime - this._startTime).to.be.within(timeoutDelay - 1, maxElapsedTime,
+      expect(this._endTime - this._startTime).to.be.within(minElapsedTime, maxElapsedTime,
         `${messagePrefix}Time elapsed is expected to be at least ${timeoutDelay}, ` +
         `and at most ${maxElapsedTime}`);
     }
@@ -120,7 +129,9 @@
 
       test('AsyncDelayChecker (negative scenarios)', async () => {
         const checkWithValues = async delay => {
-          const overtime = Math.ceil(delay * 1.05) + 50 + 1;
+          // wait one millisecond more than 50 ms that is the maximum overtime considered as
+          // acceptable by `AsyncDelayChecker`
+          const overtime = delay + 50 + 1;
           const checker = new AsyncDelayChecker();
           await timeoutPromise(delay + overtime);
           expect(() => {
@@ -138,10 +149,10 @@
     suite('Async tests helper functions', () => {
       test('asyncDelay() delays execution by a requested amount', async () => {
         const checkWithDelay = async delay => {
-          const timeBefore = Date.now();
+          const checker = new AsyncDelayChecker();
           await asyncDelay(delay);
-          const timeAfter = Date.now();
-          expect(timeAfter - timeBefore).to.be.within(delay, delay * 1.1 + 50);
+          checker.assertElapsedTimeCorrect(delay,
+              'The actual delay should match the scheduled one');
         };
         await checkWithDelay(0);
         await checkWithDelay(50);
