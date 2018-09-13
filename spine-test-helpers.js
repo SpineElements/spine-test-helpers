@@ -300,7 +300,7 @@ export const NodePredicates = {
  *                  node filtering behavior. If `null` or `undefined` is passed then
  *                  `NodePredicates.isDisplayed` is used as a default filter.
  * @param {Array<function(Node,string)>} expectedNodeCheckers
- *                  An array of checker functions. Entries with `null` or `undefined` entries are
+ *                  An array of checker functions. Entries with `null` or `undefined` values are
  *                  ignored in this array. The number of non-null, non-undefined entries is expected
  *                  to be the same as the number of checked nodes (nodes that satisfy the filtering
  *                  criteria according to `nodeFilter` value being used).
