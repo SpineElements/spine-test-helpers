@@ -190,7 +190,7 @@ export function waitForCondition(condition,
 
     if (stopWithException) {
       if (rejectionCallback) {
-        rejectionCallback(e);
+        rejectionCallback(stopWithException);
         return;
       } else {
         throw stopWithException;
