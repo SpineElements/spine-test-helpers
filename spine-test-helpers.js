@@ -245,6 +245,47 @@ export function runAsyncChain(params, ...functions) {
 }
 
 /**
+ * Finds an element by a "shadow path". A shadow path here, is a string that represents a chain
+ * of CSS selectors separated by forward slash "/" characters. Each CSS selector refers to a
+ * respective element in the parent element's shadow DOM. If several elements match a particular
+ * CSS selector, the first one of them is used.
+ *
+ * @param {Element} parentElement  an element relative to which a shadow path is followed
+ * @param {String} path            a shadow path referring to an element that should be looked for
+ * @returns {Element}  an element found by the specified shadow path, or `null` if no element that
+ *                     matches the shadow path could be found
+ */
+export function getElementByShadowPath(parentElement, path) {
+  if (!parentElement) {
+    throw new Error('The `parentElement` parameter must be specified');
+  }
+  if (!path) {
+    throw new Error('The `path` parameter must be specified');
+  }
+  const shadowSeparator = '/';
+  const shadowSeparatorIndex = path.indexOf(shadowSeparator);
+  const firstPathSegment = shadowSeparatorIndex !== -1
+      ? path.substring(0, shadowSeparatorIndex)
+      : path;
+  const shadowRoot = parentElement.shadowRoot;
+  if (!shadowRoot) {
+    // shadow path segment points to an element without shadow DOM attached
+    return null;
+  }
+  const childElement = shadowRoot.querySelector(firstPathSegment.trim());
+  if (!childElement) {
+    // shadow path segment points to an element that cannot be found
+    return null;
+  }
+  if (shadowSeparatorIndex === -1) {
+    return childElement;
+  } else {
+    const subpath = path.substring(shadowSeparatorIndex + shadowSeparator.length).trim();
+    return getElementByShadowPath(childElement, subpath);
+  }
+}
+
+/**
  * Contains constants for the standard node names
  * (https://developer.mozilla.org/en-US/docs/Web/API/Node/nodeName).
  */
