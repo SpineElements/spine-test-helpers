@@ -291,7 +291,8 @@ export function runAsyncChain(params, ...functions) {
  * ```
  * getElementByShadowPath(element, '/ #toolbar / #avatar')
  * ```
- *    — returns an element that can be referred by `element.shadowRoot.querySelector('#toolbar').shadowRoot.querySelector('#avatar')`
+ *    — returns an element that can be referred by
+ *      `element.shadowRoot.querySelector('#toolbar').shadowRoot.querySelector('#avatar')`
  *
  * @param {Node} parentNode  a node, relative to which a shadow path is followed
  * @param {String} path      a shadow path referring to an element that should be looked for
