@@ -116,12 +116,12 @@ export function asyncDelay(milliseconds = 0) {
  * @param {string=}     description
  *                An optional description that will be included into the timeout waiting failure
  *                message.
- * @param {number=2000} timeoutMillis
+ * @param {number=10000} timeoutMillis
  *                A maximum period in milliseconds that the condition should be waited for.
  * @returns {Promise} a `Promise`, which is either fulfilled, if the condition is met during the
  *          allotted timeout period, and rejected otherwise.
  */
-export function asyncCondition(condition, description, timeoutMillis = 2000) {
+export function asyncCondition(condition, description, timeoutMillis = 10000) {
   return new Promise((accept, reject) => {
     // invoking the deprecated `waitForCondition` until its usages are removed and it is made
     // module-private and non-deprecated again
@@ -132,6 +132,31 @@ export function asyncCondition(condition, description, timeoutMillis = 2000) {
       reject(e);
     });
   });
+}
+
+/**
+ * Similar to `asyncCondition`, but expects the passed `getValue` function to return
+ * a non-undefined, non-null value for the returned `Promise` to be fulfilled. This will make
+ * the promise's fulfillment value to be taken from the last non-undefined, non-null value returned
+ * by the `getValue` function.
+ *
+ * @param {Function} getValue  A function that has to return a non-undefined for a returned promise
+ *                             to be fulfilled.
+ * @param {string=} description
+ *                An optional description that will be included into the timeout waiting failure
+ *                message.
+ * @param timeoutMillis
+ *                A maximum period in milliseconds that the value should be waited for.
+ * @returns {Promise} a `Promise`, which is either fulfilled, if the function returns
+ *                a non-undefined value during the allotted timeout period, and rejected otherwise.
+ */
+export async function asyncValue(getValue, description, timeoutMillis = 10000) {
+  let value = undefined;
+  await asyncCondition(() => {
+    value = getValue();
+    return value !== undefined && value !== null;
+  }, description, timeoutMillis);
+  return value;
 }
 
 /**
@@ -146,7 +171,7 @@ export function waitForCondition(condition,
     timeoutMillis,
     rejectionCallback) {
   if (timeoutMillis === undefined) {
-    timeoutMillis = 2000;
+    timeoutMillis = 10000;
   }
   const deadline = Date.now() + timeoutMillis;
 
@@ -245,43 +270,75 @@ export function runAsyncChain(params, ...functions) {
 }
 
 /**
- * Finds an element by a "shadow path". A shadow path here, is a string that represents a chain
- * of CSS selectors separated by forward slash "/" characters. Each CSS selector refers to a
- * respective element in the parent element's shadow DOM. If several elements match a particular
- * CSS selector, the first one of them is used.
+ * Finds an element by a "shadow path". A shadow path here, is a chain of CSS selectors interlaced
+ * with forward slash characters. A forward slash character means descending into the shadow DOM of
+ * the element referred to by the path segment on its left side, or the element passed as
+ * `parentNode` parameter if it is a leading part of the `path`. If several elements match
+ * a particular CSS selector, the first one of them is used.
  *
- * @param {Element} parentElement  an element relative to which a shadow path is followed
- * @param {String} path            a shadow path referring to an element that should be looked for
- * @returns {Element}  an element found by the specified shadow path, or `null` if no element that
- *                     matches the shadow path could be found
+ * Examples:
+ *
+ * ```
+ * getElementByShadowPath(element, '.row3 > .col2 .menu')
+ * ```
+ *    — returns an element that can be referred by `element.querySelector('.row3 > .col2 .menu')`
+ *
+ * ```
+ * getElementByShadowPath(element, '/ #button1')
+ * ```
+ *    — returns an element that can be referred by `element.shadowRoot.querySelector('#butto1')`
+ *
+ * ```
+ * getElementByShadowPath(element, '/ #toolbar / #avatar')
+ * ```
+ *    — returns an element that can be referred by `element.shadowRoot.querySelector('#toolbar').shadowRoot.querySelector('#avatar')`
+ *
+ * @param {Node} parentNode  a node, relative to which a shadow path is followed
+ * @param {String} path      a shadow path referring to an element that should be looked for
+ * @param {String} _parentPath  shouldn't be used explicitly, used internally by this method as
+ *                              a path that refers to the `parentNode` for the purposes of error
+ *                              reporting
+ * @returns {Element}  an element found by the specified shadow path, or `null`, if an element
+ *                     couldn't be found
  */
-export function getElementByShadowPath(parentElement, path) {
-  if (!parentElement) {
+export function getElementByShadowPath(parentNode, path, _parentPath = '') {
+  if (!parentNode) {
     throw new Error('The `parentElement` parameter must be specified');
   }
   if (!path) {
     throw new Error('The `path` parameter must be specified');
   }
+
   const shadowSeparator = '/';
-  const shadowSeparatorIndex = path.indexOf(shadowSeparator);
-  const firstPathSegment = shadowSeparatorIndex !== -1
-      ? path.substring(0, shadowSeparatorIndex)
-      : path;
-  const shadowRoot = parentElement.shadowRoot;
-  if (!shadowRoot) {
-    // shadow path segment points to an element without shadow DOM attached
+
+  const trimmedPath = path.trim();
+  if (trimmedPath.length === 0) {
     return null;
   }
-  const childElement = shadowRoot.querySelector(firstPathSegment.trim());
-  if (!childElement) {
-    // shadow path segment points to an element that cannot be found
-    return null;
-  }
-  if (shadowSeparatorIndex === -1) {
-    return childElement;
+  if (trimmedPath.startsWith(shadowSeparator)) {
+    const shadowRoot = parentNode.shadowRoot;
+    if (!shadowRoot) {
+      return null;
+    }
+    const subpath = trimmedPath.substring(shadowSeparator.length);
+    return getElementByShadowPath(shadowRoot, subpath, `${_parentPath} /`);
   } else {
-    const subpath = path.substring(shadowSeparatorIndex + shadowSeparator.length).trim();
-    return getElementByShadowPath(childElement, subpath);
+    const shadowSeparatorIndex = trimmedPath.indexOf(shadowSeparator);
+    if (shadowSeparatorIndex !== -1) {
+      const firstPathSegment = trimmedPath.substring(0, shadowSeparatorIndex).trim();
+      const subelement = parentNode.querySelector(firstPathSegment);
+      if (!subelement) {
+        return null;
+      }
+      const subpath = trimmedPath.substring(firstPathSegment.length).trim();
+      return getElementByShadowPath(subelement, subpath, `${_parentPath}${firstPathSegment}`);
+    } else {
+      const targetElement = parentNode.querySelector(trimmedPath);
+      if (!targetElement) {
+        return null;
+      }
+      return targetElement;
+    }
   }
 }
 
@@ -386,6 +443,7 @@ export const Checkers = Object.assign(window.Checkers || {}, {
    * @param {{
    *    name: string|undefined,
    *    className: string|undefined,
+   *    hasClassNames: Array<string>|undefined,
    *    innerHTML: string|undefined,
    *    innerText: string|undefined,
    *    childNodes: Array<function>|undefined,
@@ -393,9 +451,11 @@ export const Checkers = Object.assign(window.Checkers || {}, {
    *    shadowNodes: Array<function>|undefined,
    *    shadowNodesByFilters: {filter:function,checkers:Array<function>}|undefined,
    *    slots: Object|undefined,
+   *    descendantsByPaths: Object|undefined,
    *    properties: Object|undefined,
    *    computedStyle: Object|undefined,
-   *    borderBox: Object|undefined
+   *    borderBox: Object|undefined,
+   *    checkers: Array<function>|undefined
    *  }} params  a hash whose properties defines which checks should be performed on a node:
    *    - `name` makes the element's tag name to be checked. Lower-case tag name is expected
    *             here.
@@ -431,6 +491,8 @@ export const Checkers = Object.assign(window.Checkers || {}, {
    *             should be run on an element assigned to that slot. Passing `null` as a value
    *             results in an assertion that ensures that there's no element assigned to that
    *             slot.
+   *    - `descendantsByPaths` accepts a hash that contains shadow paths as keys, and respective
+   *             element checker functions as values. See
    *    - `properties` accepts a hash of property name -> property value pairs that should be
    *             checked using the `assert.equal` for the respective element(s).
    *    - `computedStyle` — a hash of CSS property name -> CSS property value paris that are
@@ -440,8 +502,8 @@ export const Checkers = Object.assign(window.Checkers || {}, {
    *             against element's border box (which is obtained using the
    *             `Element.getBoundingClientRect()` method). A key can be one of: `left`, `top`,
    *             `right`, `bottom`, `width`, or `height`, and a value should be a number that
-   *             the respective property is expected to be equal to. Dimensions that are off by
-   *             up to 0.5 pixels are considered equal by this method.
+   *             the respective property is expected to be equal to (in pixels). Dimensions that
+   *             are off by up to 0.5 pixels are considered equal by this method.
    *    - `checkers` — an array of checker functions that should be run for the node.
    *
    * @returns {function(node: Node, message: string)}
@@ -511,6 +573,18 @@ export const Checkers = Object.assign(window.Checkers || {}, {
           assert.isNull(elementAssignedToSlot,
               `${messagePrefix}ensuring that there's no element with ` +
               `attribute slot="${slotName}"`);
+        }
+      });
+    }
+    if (params.descendantsByPaths !== undefined) {
+      Object.keys(params.descendantsByPaths).forEach(path => {
+        const elementChecker = params.descendantsByPaths[path];
+        const targetElement = getElementByShadowPath(node, path);
+        if (elementChecker) {
+          assert.isOk(targetElement, `${messagePrefix}couldn't find descendant by path: ${path}`);
+          elementChecker(targetElement, `${messagePrefix}checking descendant at path "${path}"`);
+        } else {
+          assert.isNotOk(targetElement, `${messagePrefix}element with path expected to not exist: ${path}`);
         }
       });
     }
