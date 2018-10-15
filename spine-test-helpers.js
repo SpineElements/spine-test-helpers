@@ -286,7 +286,7 @@ export function runAsyncChain(params, ...functions) {
  * ```
  * getElementByShadowPath(element, '/ #button1')
  * ```
- *    — returns an element that can be referred by `element.shadowRoot.querySelector('#butto1')`
+ *    — returns an element that can be referred by `element.shadowRoot.querySelector('#button1')`
  *
  * ```
  * getElementByShadowPath(element, '/ #toolbar / #avatar')
@@ -495,7 +495,8 @@ export const Checkers = Object.assign(window.Checkers || {}, {
    *             results in an assertion that ensures that there's no element assigned to that
    *             slot.
    *    - `descendantsByPaths` accepts a hash that contains shadow paths as keys, and respective
-   *             element checker functions as values. See
+   *             element checker functions as values. See the {@link getElementByShadowPath} method
+   *             for the description of the shadow path's format.
    *    - `properties` accepts a hash of property name -> property value pairs that should be
    *             checked using the `assert.equal` for the respective element(s).
    *    - `computedStyle` — a hash of CSS property name -> CSS property value paris that are
