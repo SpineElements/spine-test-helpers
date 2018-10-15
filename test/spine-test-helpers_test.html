@@ -82,8 +82,10 @@
      * @param {Number} timeoutDelay  an asynchronous delay that is expected to have passed since
      *                               instance creation at the time when this method is invoked
      * @param {String=} message      an optional message to include into the assertion message
+     * @param {Number=} maximumOvertime   a maximum number of milliseconds that the actual delay
+     *                                    can exceed while still being considered as valid
      */
-    assertElapsedTimeCorrect(timeoutDelay, message) {
+    assertElapsedTimeCorrect(timeoutDelay, message, maximumOvertime = 50) {
       if (this._endTime) {
         throw new Error('This method can be invoked only once per instance');
       }
@@ -96,7 +98,7 @@
 
       // allowing a fixed 50 ms of overtime below as a rough assumption of how an actual async
       // callback's invocation time might be late relative to the scheduled invocation time
-      const maxElapsedTime = timeoutDelay + 50;
+      const maxElapsedTime = timeoutDelay + maximumOvertime;
 
       const messagePrefix = message ? `${message}: ` : '';
       expect(this._endTime - this._startTime).to.be.within(minElapsedTime, maxElapsedTime,
@@ -195,12 +197,13 @@
 
       test('asyncCondition() rejects its Promise if a condition is not met in time', async() => {
         const checkWithTimeout = async timeout => {
+          const checker = new AsyncDelayChecker();
           try {
-            await asyncCondition(() => false);
+            await asyncCondition(() => false, `A timeout with a timeout of ${timeout}`, timeout);
             assert.fail('asyncCondition\'s Promise was fulfilled',
                 'asyncCondition\'s Promise should be rejected since the condition is never met');
           } catch (e) {
-            console.log('passed');
+            checker.assertElapsedTimeCorrect(timeout, 'timout expiration should be timely', 100);
           }
         };
 
